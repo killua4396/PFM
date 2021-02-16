@@ -166,37 +166,27 @@ def get_few_day(day,df,standscaler,model,today_info):
         today_info = get_today_info(df)
     return df
 
+from dateutil.relativedelta import relativedelta
 #获取需要预测的步长
 def get_days_need_predict(df):
     nowday = df.loc[df.shape[0] - 1, 'date']
-    days_need_predict = 7 + (6 - nowday.dayofweek)
-    return days_need_predict
+    T_days_in_month = nowday.days_in_month
+    temp1 = T_days_in_month - nowday.day
+    temp2 = (nowday + relativedelta(month=nowday.month+1)).days_in_month
+    return (temp1+temp2),nowday.days_in_month,temp2
 
 #获取结果
-def get_tweekday_pf(df):
-    t_weekday_pf = 0
-    for i in df.loc[df.shape[0]-14:df.shape[0]-10]['pf'].to_list() :
-        t_weekday_pf += i
-    return t_weekday_pf
+def get_Nmonth_pf(df,d1,d2):
+    Nm_pf = 0
+    for i in df.loc[df.shape[0]-d2:df.shape[0]-1]['pf'].to_list():
+        Nm_pf += i
+    return Nm_pf
 
-def get_tweekend_pf(df):
-    t_weekend_pf = 0
-    for i in df.loc[df.shape[0]-9:df.shape[0]-8]['pf'].to_list() :
-        t_weekend_pf += i
-    return t_weekend_pf
-
-def get_nweekday_pf(df):
-    n_weekday_pf = 0
-    for i in df.loc[df.shape[0]-7:df.shape[0]-3]['pf'].to_list() :
-        n_weekday_pf += i
-    return n_weekday_pf
-
-def get_nweekend_pf(df):
-    n_weekend_pf = 0
-    for i in df.loc[df.shape[0]-2:df.shape[0]-1]['pf'].to_list() :
-        n_weekend_pf += i
-    return n_weekend_pf
-
+def get_Tmonth_pf(df,d1,d2):
+    Tm_pf = 0
+    for i in df.loc[df.shape[0]-d2-d1:df.shape[0]-d2-1]['pf'].to_list():
+        Tm_pf += i
+    return Tm_pf
 
 #建立SSH服务
 server = SSHTunnelForwarder(
@@ -302,14 +292,11 @@ model = xgb.XGBRegressor(**other_params)
 model.fit(X_train_stand,y_train)
 
 #获取需要预测的步长并进行预测
-days_need_predict = get_days_need_predict(EachDay_pf)
+days_need_predict,d1,d2 = get_days_need_predict(EachDay_pf)
 EachDay_pf = get_few_day(days_need_predict,EachDay_pf,standscaler,model,get_today_info(EachDay_pf))
 
-#获得结果
-t_weekday_pf = get_tweekday_pf(EachDay_pf)
-t_weekend_pf = get_tweekend_pf(EachDay_pf)
-n_weekday_pf = get_nweekday_pf(EachDay_pf)
-n_weekend_pf = get_nweekend_pf(EachDay_pf)
+Nm_pf = get_Nmonth_pf(EachDay_pf,d1,d2)
+Tm_pf = get_Tmonth_pf(EachDay_pf,d1,d2)
 
 
 #写入数据库
@@ -323,11 +310,11 @@ conn = pymysql.connect(
     charset='utf8'
 )
 cursor = conn.cursor(pymysql.cursors.SSDictCursor)
-sql1 = 'Delete from predict_weekinfo'
-sql2 = 'insert into predict_weekinfo values(%s,%s,%s)'
-sql3 = 'insert into predict_weekinfo values(%s,%s,%s)'
-args1 = ('This_W',t_weekday_pf,t_weekend_pf)
-args2 = ('Next_W',n_weekday_pf,n_weekend_pf)
+sql1 = 'Delete from predict_monthinfo'
+sql2 = 'insert into predict_monthinfo values(%s,%s)'
+sql3 = 'insert into predict_monthinfo values(%s,%s)'
+args1 = ('This_M',Tm_pf)
+args2 = ('Next_M',Nm_pf)
 
 num1 = cursor.execute(sql1)
 if num1>0:

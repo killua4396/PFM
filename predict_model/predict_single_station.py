@@ -43,23 +43,37 @@ trips["out_time_slot"] = trips["Out_station_time"].apply(changeT_orderby_halfhou
 #将时间段进站客流进行统计
 temp1 = pd.DataFrame()
 temp1[["Station_name","Time_slot"]] = trips[["In_station_name","in_time_slot"]]
+temp1 = temp1.sort_values(by="Time_slot")
+temp1 = temp1.reset_index(drop=True)
+Earliest_Time = temp1.loc[0]["Time_slot"]
 temp1 = pd.DataFrame(temp1.value_counts())
 
 #将时间段出站客流进行统计
 temp2 = pd.DataFrame()
 temp2[["Station_name","Time_slot"]] = trips[["Out_station_name","out_time_slot"]]
+temp2 = temp2.sort_values(by="Time_slot")
+temp2 = temp2.reset_index(drop = True)
+Lastest_Time = temp2.loc[temp2.shape[0]-1]["Time_slot"]
 temp2 = pd.DataFrame(temp2.value_counts())
 
-#将有客流的出站时间段和有客流的入站时间段拼接在一起
-a = pd.DataFrame()
-a[["Station_name","Time_slot"]] = trips[["In_station_name","in_time_slot"]]
-b = pd.DataFrame()
-b[["Station_name","Time_slot"]] = trips[["Out_station_name","out_time_slot"]]
-c = a.append(b)
-Timeslot_pf = c
+#创建含有所有时间段的基本数据，主要用于后续shift时间
+StartTime = pd.to_datetime(Earliest_Time)
+EndTime = pd.to_datetime(Lastest_Time)
+value = []
+index1 = []
+index2 = []
+import datetime
+for S_name in station["Station_name"]:
+    Time = StartTime
+    while Time != EndTime + datetime.timedelta(days=1):
+        value.append(0)
+        index1.append(S_name)
+        index2.append(str(Time))
+        Time = Time + datetime.timedelta(minutes=30)
+
+Timeslot_pf = pd.DataFrame(index=[index1,index2])
 
 #按时间段，组成基本数据格式
-Timeslot_pf = Timeslot_pf.groupby(["Station_name","Time_slot"]).agg("count")
 Timeslot_pf["InNums"] = temp1[0]
 Timeslot_pf["OutNums"] = temp2[0]
 
@@ -193,4 +207,81 @@ for index,row in Timeslot_pf.iterrows():
 Timeslot_pf["date_type"] = Timeslot_pf["Time_slot"].apply(lambda x : transform[x.dayofyear])
 Timeslot_pf = Timeslot_pf.reset_index(drop = True)
 
-print(Timeslot_pf)
+#定义一个函数用于shift时间
+def time_shift(data_in_sta, data_in_shfit_cols, data_out_shfit_cols):
+    lag_start = 48
+    lag_end = 48 * 3
+    data_out_sta = data_in_sta.copy()
+    for i in range(lag_start, lag_end + 1, 48):
+        for col in data_in_shfit_cols:
+            data_in_sta[col + "_lag_{}".format(i)] = data_in_sta[col].shift(i)
+            if (col != 'InNums') & (col != 'OutNums') & (i == lag_end):
+                del data_in_sta[col]
+        for col1 in data_out_shfit_cols:
+            data_out_sta[col1 + "_lag_{}".format(i)] = data_out_sta[col1].shift(i)
+            if (col1 != 'InNums') & (col1 != 'OutNums') & (i == lag_end):
+                del data_out_sta[col1]
+
+    return data_in_sta, data_out_sta
+
+#shift时间前期处理
+data_in_shfit = pd.DataFrame()
+data_out_shfit = pd.DataFrame()
+
+data_in_shfit_cols = list(Timeslot_pf)
+data_in_shfit_cols.remove('Station_name')
+data_in_shfit_cols.remove('Time_slot')
+data_in_shfit_cols.remove('Day')
+data_in_shfit_cols.remove('Dayofweek')
+data_in_shfit_cols.remove('hour')
+data_in_shfit_cols.remove('min')
+data_in_shfit_cols.remove("date_type")
+
+
+data_out_shfit_cols = list(Timeslot_pf)
+data_out_shfit_cols.remove('Station_name')
+data_out_shfit_cols.remove('Time_slot')
+data_out_shfit_cols.remove('Day')
+data_out_shfit_cols.remove('Dayofweek')
+data_out_shfit_cols.remove('hour')
+data_out_shfit_cols.remove('min')
+data_out_shfit_cols.remove("date_type")
+
+#对站点逐个进行shift时间
+for i in station["Station_name"]:
+    data_temp = Timeslot_pf[Timeslot_pf['Station_name'] == i]
+    data_in_sta,data_out_sta = time_shift(data_temp,data_in_shfit_cols,data_out_shfit_cols)
+    data_in_shfit = pd.concat([data_in_shfit, data_in_sta], axis=0, ignore_index=True)
+    data_out_shfit = pd.concat([data_out_shfit, data_out_sta], axis=0, ignore_index=True)
+
+#处理数据，分离出数据集和label
+del data_in_shfit["Time_slot"]
+data_in_shfit.fillna(0.0,inplace=True)
+X = data_in_shfit.drop(columns=["InNums","OutNums"])
+y_in = data_in_shfit["InNums"]
+y_out = data_in_shfit["OutNums"]
+
+#对数据进行标准化处理
+import xgboost as xgb
+from sklearn.preprocessing import StandardScaler
+StdScaler = StandardScaler()
+wait = X[["Station_name","Dayofweek","Day","hour","min","date_type"]]
+wait["Station_name"] = wait["Station_name"].apply(lambda x:x[3:])
+wait = np.array(wait)
+temp = X.drop(columns=["Station_name","Dayofweek","Day","hour","min","date_type"])
+StdScaler.fit(temp)
+temp = StdScaler.transform(temp)
+X = np.hstack((wait,temp))
+
+#train_test_split
+len_X = X.shape[0]
+X_train = X[:int(len_X*0.7)]
+X_test = X[int(len_X*0.7):int(len_X*0.95)]
+y_train = y_in[:int(len_X*0.7)]
+y_test = y_in[int(len_X*0.7):int(len_X*0.95)]
+
+#模型训练（未调参）
+other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
+                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
+model = xgb.XGBRegressor(**other_params)
+model.fit(X_train,y_train)

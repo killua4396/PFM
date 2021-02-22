@@ -66,10 +66,10 @@ import datetime
 for S_name in station["Station_name"]:
     Time = StartTime
     while Time != EndTime + datetime.timedelta(days=1):
+        Time = Time + datetime.timedelta(minutes=30)
         value.append(0)
         index1.append(S_name)
         index2.append(str(Time))
-        Time = Time + datetime.timedelta(minutes=30)
 
 Timeslot_pf = pd.DataFrame(index=[index1,index2])
 
@@ -187,7 +187,6 @@ for col in Timeslot_pf.columns:
     rate = Timeslot_pf[col].value_counts(normalize=True, dropna=False).values[0]
     if rate > 0.90:
         good_cols.remove(col)
-        print(col, rate)
 Timeslot_pf = Timeslot_pf[good_cols]
 
 #定义一个日期类型转换字典
@@ -258,20 +257,58 @@ for i in station["Station_name"]:
 del data_in_shfit["Time_slot"]
 data_in_shfit.fillna(0.0,inplace=True)
 X = data_in_shfit.drop(columns=["InNums","OutNums"])
-y_in = data_in_shfit["InNums"]
-y_out = data_in_shfit["OutNums"]
+y_in = data_in_shfit[["Station_name","InNums"]]
+y_out = data_in_shfit[["Station_name","OutNums"]]
 
-#对数据进行标准化处理
+#将训练数据与预测数据分离
+def info_predict_split(df):
+    df = df.reset_index(drop = True)
+    return df.loc[:df.shape[0]-49],df.loc[df.shape[0]-48:]
+
+
+train_X = pd.DataFrame()
+train_y_in = pd.DataFrame()
+train_y_out = pd.DataFrame()
+predict_X = pd.DataFrame()
+
+for i in station["Station_name"]:
+    data_temp_X = X[X["Station_name"] == i]
+    data_temp_y_in = y_in[y_in["Station_name"] == i]
+    data_temp_y_out = y_out[y_out["Station_name"] == i]
+
+    train_X_temp, predict_X_temp = info_predict_split(data_temp_X)
+    train_y_in_temp, predict_y_in = info_predict_split(data_temp_y_in)
+    train_y_out_temp, predicty_y_out = info_predict_split(data_temp_y_out)
+
+    train_X = pd.concat([train_X, train_X_temp], axis=0, ignore_index=True)
+    predict_X = pd.concat([predict_X, predict_X_temp], axis=0, ignore_index=True)
+    train_y_in = pd.concat([train_y_in, train_y_in_temp], axis=0, ignore_index=True)
+    train_y_out = pd.concat([train_y_out, train_y_out_temp], axis=0, ignore_index=True)
+
+X = train_X
+y_in = train_y_in
+y_out = train_y_out
+del y_in['Station_name']
+del y_out['Station_name']
+
 import xgboost as xgb
 from sklearn.preprocessing import StandardScaler
-StdScaler = StandardScaler()
-wait = X[["Station_name","Dayofweek","Day","hour","min","date_type"]]
-wait["Station_name"] = wait["Station_name"].apply(lambda x:x[3:])
-wait = np.array(wait)
-temp = X.drop(columns=["Station_name","Dayofweek","Day","hour","min","date_type"])
-StdScaler.fit(temp)
-temp = StdScaler.transform(temp)
-X = np.hstack((wait,temp))
+
+#处理输入X数据
+def delwith_X(df):
+    StdScaler = StandardScaler()
+    #将需要标准化与不需要标准化的数据分开
+    wait = df[["Station_name", "Dayofweek", "Day", "hour", "min", "date_type"]]
+    wait["Station_name"] = wait["Station_name"].apply(lambda x: x[3:])
+    wait = np.array(wait)
+    temp = df.drop(columns=["Station_name", "Dayofweek", "Day", "hour", "min", "date_type"])
+    StdScaler.fit(temp)
+    temp = StdScaler.transform(temp)
+    df = np.hstack((wait, temp))
+    return df
+
+X = delwith_X(X)
+predict_X = delwith_X(predict_X)
 
 #train_test_split
 len_X = X.shape[0]
@@ -280,8 +317,80 @@ X_test = X[int(len_X*0.7):int(len_X*0.95)]
 y_train = y_in[:int(len_X*0.7)]
 y_test = y_in[int(len_X*0.7):int(len_X*0.95)]
 
-#模型训练（未调参）
+#进行模型训练，有两个模型，分别是进和出
+#训练进模型
 other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
                     'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
-model = xgb.XGBRegressor(**other_params)
-model.fit(X_train,y_train)
+model_in = xgb.XGBRegressor(**other_params)
+model_in.fit(X_train,y_train)
+
+#改变y_train和y_test
+y_train = y_out[:int(len_X*0.7)]
+y_test = y_out[int(len_X*0.7):int(len_X*0.95)]
+#训练出模型
+model_out = xgb.XGBRegressor(**other_params)
+model_out.fit(X_train,y_train)
+
+#进行预测
+future_y_in  = model_in.predict(predict_X)
+future_y_out = model_out.predict(predict_X)
+
+#对结果进行处理
+result_in = np.abs(np.round(future_y_in))
+result_out = np.abs(np.round(future_y_out))
+result_in = result_in.astype(np.int32)
+result_out = result_out.astype(np.int32)
+
+#获取站点名称
+sta = predict_X[:,0]
+
+#获取时间节点
+Timeslot = []
+Time = EndTime
+while Time != EndTime + datetime.timedelta(days=1):
+    Time = Time + datetime.timedelta(minutes=30)
+    Timeslot.append(str(Time))
+
+Timeslot = (Timeslot * 163)
+
+#组成最终结果
+result = np.stack([sta,Timeslot,result_in,result_out],axis=1)
+
+#将数据输入到数据库
+server.start()
+conn = pymysql.connect(
+    host='127.0.0.1',
+    port = server.local_bind_port,
+    user='SWORD',
+    password='SwordRefersToS11',
+    db = 'sword',
+    charset='utf8'
+)
+cursor = conn.cursor(pymysql.cursors.SSDictCursor)
+
+sql1 = 'Delete from predict_nextday_info'
+num1 = cursor.execute(sql1)
+if num1 > 0:
+    conn.commit()
+else:
+    conn.rollback()
+
+for i in result:
+    sta = i[0]
+    time = i[1]
+    innums = i[2]
+    outnums = i[3]
+    sql = "insert into predict_nextday_info values(%s,%s,%s,%s)"
+    arg = (sta, time, innums, outnums)
+
+
+
+    num = cursor.execute(sql,arg)
+    if num>0:
+        conn.commit()
+    else:
+        conn.rollback()
+
+
+conn.close()
+server.close()

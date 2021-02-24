@@ -1,0 +1,18 @@
+<html>
+    <body>
+       <h3>用户信息修改</h3>
+       <hr/>
+       <form action = "{{ request.path }}" method = "post">
+           {{ form.csrf_token }}
+           <label for = "name">用户名：</label>
+           <input type = "text" name = "name" placeholder = "" /><br>
+           <label for = "email">邮　箱：</label>
+           <input type = "text" name = "email" placeholder = "" /><br>
+           <label for = "passwd">密　码：</label>
+           <input type ="password" name = "passwd" placeholder = "" /><br>
+           <label for = "demo">备　注：</label>
+           <textarea name = "demo" placeholder = ""></textarea><br>
+           <input type = "submit" value = "保存" />
+       </form>
+    </body>
+ </html>

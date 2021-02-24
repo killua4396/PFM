@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% from 'bootstrap/table.html' import render_table %}
+
+{% block content %}
+
+<h3>所有用户信息</h3>
+
+{{ render_table(users,
+                show_actions=True,
+                actions_title="操作",
+                edit_url='/modifyuser/:primary_key',
+                delete_url='/deleteuser/:primary_key') }}
+
+{% endblock %}

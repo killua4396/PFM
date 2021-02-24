@@ -1,0 +1,10 @@
+{% extends 'base.html' %}   
+{% from 'bootstrap/form.html' import render_form%}
+
+{% block disptitle %}
+  <h3>用户登录</h3> 
+{% endblock %}
+
+{% block content %}
+{{ render_form(form, form_type="horizontal")}}
+{% endblock %}

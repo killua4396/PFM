@@ -1,0 +1,16 @@
+{% extends 'base.html' %}   
+{% from 'bootstrap/form.html' import render_field %}
+
+{% block content %}
+
+<h3>添加用户</h3>
+<form action="{{ request.path }}" method="post">
+    {{ form.csrf_token }}
+    {{ render_field(form.username) }}
+    {{ render_field(form.passwd) }}
+    {{ render_field(form.email) }}
+    {{ render_field(form.demo) }}
+    {{ render_field(form.submit) }}
+</form>
+
+{% endblock %}

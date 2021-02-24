@@ -43,6 +43,7 @@ trips["out_time_slot"] = trips["Out_station_time"].apply(changeT_orderby_halfhou
 #将时间段进站客流进行统计
 temp1 = pd.DataFrame()
 temp1[["Station_name","Time_slot"]] = trips[["In_station_name","in_time_slot"]]
+temp1["Time_slot"] = temp1["Time_slot"].apply(lambda x:pd.to_datetime(x))
 temp1 = temp1.sort_values(by="Time_slot")
 temp1 = temp1.reset_index(drop=True)
 Earliest_Time = temp1.loc[0]["Time_slot"]
@@ -51,6 +52,7 @@ temp1 = pd.DataFrame(temp1.value_counts())
 #将时间段出站客流进行统计
 temp2 = pd.DataFrame()
 temp2[["Station_name","Time_slot"]] = trips[["Out_station_name","out_time_slot"]]
+temp2["Time_slot"] = temp2["Time_slot"].apply(lambda x:pd.to_datetime(x))
 temp2 = temp2.sort_values(by="Time_slot")
 temp2 = temp2.reset_index(drop = True)
 Lastest_Time = temp2.loc[temp2.shape[0]-1]["Time_slot"]
@@ -69,7 +71,7 @@ for S_name in station["Station_name"]:
         Time = Time + datetime.timedelta(minutes=30)
         value.append(0)
         index1.append(S_name)
-        index2.append(str(Time))
+        index2.append(Time)
 
 Timeslot_pf = pd.DataFrame(index=[index1,index2])
 
@@ -343,6 +345,7 @@ result_out = result_out.astype(np.int32)
 
 #获取站点名称
 sta = predict_X[:,0]
+sta = "Sta" + sta
 
 #获取时间节点
 Timeslot = []

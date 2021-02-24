@@ -252,6 +252,8 @@ EachDay_pf['MA10'] = EachDay_pf['pf'].rolling(10).mean()
 for index,row in EachDay_pf.iterrows():
     if row.date.year != 2020:
         EachDay_pf = EachDay_pf.drop(index=index)
+    if row.date.year == 2020:
+        break
 
 #去除空值
 EachDay_pf = EachDay_pf.dropna(subset=['MA10'])

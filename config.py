@@ -25,5 +25,5 @@ forwarding_server.start()
 local_port = forwarding_server.local_bind_port
 SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://SWORD:SwordRefersToS11@127.0.0.1:{}/sword'.format(local_port)
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-SQLALCHEMY_ECHO = True
+SQLALCHEMY_ECHO = False
 SECRET_KEY = "SwordRefersToS11"

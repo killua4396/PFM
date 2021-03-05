@@ -1,72 +1,70 @@
-from flask import Flask
+from flask import Flask, request, render_template
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate, MigrateCommand
-from flask_script import Manager
-from flask_script import Shell
-from flask_login import UserMixin
-from dataclasses import dataclass
-
-
-def selectAll():
-    db.session.execute("SET @row_number = 0")
-    query = db.session.query(User).order_by("id")
-    row_number_column = "(@row_number := @row_number + 1) AS row_num"
-    query = query.add_column(row_number_column)
-
-    @dataclass
-    class user_with_rownum:
-        id: int
-        name: str
-        email: str
-        passwd: str
-        demo: str
-        unit: str
-        level: str
-        row_num: int
-
-    lst_result = []
-    for ipp in query.all():
-        tmpuser = user_with_rownum(0, ipp[0].name, ipp[0].email, ipp[0].passwd, ipp[0].demo, ipp[0].unit, ipp[0].level,
-                                   ipp[1])
-        lst_result.append(tmpuser)
-    return lst_result
-
-
-def make_shell_context():
-    return dict(app=app, db=db, User=User)
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, login_required
+from werkzeug.urls import url_parse
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms.validators import DataRequired
 
 
 app = Flask(__name__)
-manager = Manager(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456@localhost:3306/abc?charset=utf8'
-manager.add_command("shell", Shell(make_context=make_shell_context))
 
+login = LoginManager(app)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:123456@localhost:3306/users'
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-manager.add_command('db', MigrateCommand)
+app.config['SECRET_KEY'] = '123678'
+
+
+class LoginForm(FlaskForm):
+    username = StringField('用户名', validators=[DataRequired()])
+    password = PasswordField('密码', validators=[DataRequired()])
+    remember_me = BooleanField('记住我')
+    submit = SubmitField('登录')
 
 
 class User(UserMixin, db.Model):
-    id          = db.Column(db.Integer, primary_key = True)
-    name        = db.Column(db.String(100), unique=True)
-    email       = db.Column(db.String(100))
-    passwd_hash = db.Column(db.String(200))
-    demo        = db.Column(db.String(100))
-    unit        = db.Column(db.String(100))
-    level       = db.Column(db.String(100))
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
-class ModifyUserForm(Form):
-    username    = StringField("用户名", [validators.Length(max=10,min=6,message="用户名长度必须大于%(min)d且小于%(max)d")])
-    passwd      = RadioField('是否重置密码', choices=[ ('1', '是'), ('0', '否')], default='0', validators=[validators.DataRequired()])
-    email       = StringField("邮箱", validators = [validators.Email(message='邮箱格式错误')])
-    unit        = SelectField('单位', choices=unitChoice)
-    level       = SelectField('等级', choices=levelChoice)
-    demo        = TextField("备注")
-    submit      = SubmitField("修改")
+@login.user_loader
+def load_user(id):
+    return User.query.get(int(id))
 
 
-if __name__ == '__main__':
-    manager.run()
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None or not user.check_password(form.password.data):
+            flash('无效的用户名或密码!')
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        return redirect(url_for('index'))
+    return render_template('login.html', title='登录', form=form)
 
-manager.add_command('db', MigrateCommand)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('你已经退出系统！')
+    return redirect(url_for('index'))
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=8080)

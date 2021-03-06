@@ -1,13 +1,13 @@
-import numpy as np
-import pandas as pd
-import xgboost as xgb
-import datetime
-from database import model_parameter
 from database import app
-from flask import jsonify
 
 @app.route("/predict/predict_month_info")
 def predict_month_info():
+    import numpy as np
+    import pandas as pd
+    import xgboost as xgb
+    import datetime
+    from flask import jsonify
+    from database import model_parameter
     parameter = model_parameter.query.filter(model_parameter.model == 'predict_day')
     other_params = {}
     for i in parameter:
@@ -214,7 +214,6 @@ def predict_month_info():
     from database import workdays2020
     from database import db
     data1 = db.session.query(trips).all()
-    # 从数据库导入数据
     trips = pd.DataFrame([(d.id, d.User_id, d.In_station_name, d.In_station_time, d.Out_station_name,
                            d.Out_station_time, d.Channel_number, d.Price) for d in data1],
                          columns=["id", "User_id", "In_station_name", "In_station_time",
@@ -222,6 +221,7 @@ def predict_month_info():
     data2 = db.session.query(workdays2020).all()
     workdays = pd.DataFrame([(d.Date, d.Date_type, d.Dayofyear) for d in data2],
                             columns=["Date", "Date_type", "Dayofyear"])
+    del trips["id"]
 
     # 将进站时间字符串转化成进站时间时间戳
     trips['in_timestamp'] = trips['In_station_time'].apply(lambda x: pd.to_datetime(x))
@@ -308,7 +308,6 @@ def predict_month_info():
     Tm_pf = get_Tmonth_pf(EachDay_pf, d1, d2)
 
     # 写入数据库
-    from database import db
     from database import predict_monthinfo
     db.session.query(predict_monthinfo).delete()
     db.session.commit()

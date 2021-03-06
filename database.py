@@ -44,6 +44,11 @@ class predict_nextday_info(db.Model):
     OutNums = db.Column(db.Integer)
     def __init__(self,id=None,Station_name=None,Timeslot=None,InNums=None,OutNums=None):
         self.data(id,Station_name,Timeslot,InNums,OutNums)
+    def __init__(self,Station_name,Timeslot,InNums,OutNums):
+        self.Station_name = Station_name
+        self.Timeslot = Timeslot
+        self.InNums = InNums
+        self.OutNums = OutNums
 
 #预测OD信息
 class predict_OD_info(db.Model):
@@ -55,6 +60,11 @@ class predict_OD_info(db.Model):
     OD_pf =db.Column(db.Integer)
     def __init__(self,id=None,Timeslot=None,Starting_station=None,Ending_station=None,OD_pf=None):
         self.data(id,Timeslot,Starting_station,Ending_station,OD_pf)
+    def __init__(self,Timeslot,Starting_station,Ending_station,OD_pf):
+        self.Timeslot = Timeslot
+        self.Starting_station = Starting_station
+        self.Ending_station = Ending_station
+        self.OD_pf = OD_pf
 
 #预测早晚高峰客流信息
 class predict_rushhour_info(db.Model):
@@ -64,8 +74,8 @@ class predict_rushhour_info(db.Model):
     Station_name = db.Column(db.String(10),nullable=False)
     Morning_rushhour_pf = db.Column(db.Integer)
     Evening_rushhour_pf = db.Column(db.Integer)
-    def __init__(self,id=None,Next_weekday=None,Station_name=None,Morning_rushhour_pf=None,Evening_rushhour_pf=None):
-        self.data(id,Next_weekday,Station_name,Morning_rushhour_pf,Evening_rushhour_pf)
+    # def __init__(self,id=None,Next_weekday=None,Station_name=None,Morning_rushhour_pf=None,Evening_rushhour_pf=None):
+    #     self.data(id,Next_weekday,Station_name,Morning_rushhour_pf,Evening_rushhour_pf)
 
 #预测单站点客流信息
 class predict_singlestation_info(db.Model):
@@ -87,8 +97,9 @@ class predict_weekinfo(db.Model):
     Week = db.Column(db.String(10),primary_key=True)
     Weekday_PassengerFlow = db.Column(db.Integer)
     Weekend_PassengerFlow = db.Column(db.Integer)
-    def __init__(self,Week=None,Weekday_PassengerFlow=None,Weekend_PassengerFlow=None):
-        self.data(Week,Weekday_PassengerFlow,Weekend_PassengerFlow)
+    # def __init__(self,Week=None,Weekday_PassengerFlow=None,Weekend_PassengerFlow=None):
+    #     self.data(Week,Weekday_PassengerFlow,Weekend_PassengerFlow)
+
 
 #系统用户信息
 class system_users(db.Model):

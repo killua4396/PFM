@@ -1,4 +1,3 @@
-
 from database import app
 @app.route("/predict/predict_week_info")
 def predict_week_info():

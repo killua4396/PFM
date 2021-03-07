@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import config
 
 app = Flask(__name__)
+app.secret_key = "S11"
 app.config.from_object(config)
 db = SQLAlchemy(app)
 

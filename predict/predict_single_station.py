@@ -381,5 +381,76 @@ def predict_single_station():
     return jsonify(msg = "明日预测数据更新成功")
 
 
+@app.route("/predict/predict_single_station/update")
+def update():
+    import datetime
+    import pandas as pd
+    from database import station
+    from database import db
+    from database import predict_nextday_info
+    data3 = db.session.query(predict_nextday_info)
+
+
+    nextday = pd.DataFrame([(d.id, d.Station_name, d.Timeslot, d.InNums, d.OutNums) for d in data3],
+                           columns=["id", "Station_name", "Timeslot", "InNums", "OutNums"])
+
+
+
+    now = datetime.datetime.now()
+    now = pd.to_datetime(now)
+    del nextday["id"]
+
+    def changeT_orderby_halfhour(x):
+        t = int(x[14:16])
+        if t < 30 and t >= 0:
+            t = "00"
+        elif t >= 30 and t <= 59:
+            t = "30"
+        return (x[:14] + t + ":00")
+
+    now = changeT_orderby_halfhour(str(now))
+
+    halfhour = nextday[nextday["Timeslot"] == now]
+    del halfhour["Timeslot"]
+
+    #获取当前的时间计算出未来半小时，一小时，一天的客流量
+    now = pd.to_datetime(now)
+    now_add_half = now + datetime.timedelta(minutes=+30)
+    anhour = nextday[(nextday["Timeslot"] == str(now)) | (nextday["Timeslot"] == str(now_add_half))]
+    anhour = anhour[["Station_name", "InNums", "OutNums"]].groupby("Station_name").agg("sum")
+    day = nextday[["Station_name", "InNums", "OutNums"]].groupby("Station_name").agg("sum")
+
+    #提取结果
+    halfhour = halfhour.set_index("Station_name")
+    halfhour.columns = ["halfhour_in_pf", "halfhour_out_pf"]
+    anhour.columns = ["anhour_in_pf", "anhour_out_pf"]
+    day.columns = ["aday_in_pf", "aday_out_pf"]
+
+    #将结果拼接起来
+    result = pd.concat([halfhour,anhour,day],axis=1)
+    result["Station_name"] = result.index
+    result = result.reset_index(drop=True)
+
+    from database import predict_singlestation_info
+    db.session.query(predict_singlestation_info).delete()
+    db.session.commit()
+    all = []
+    for row in result.iterrows():
+        Station_name = row[1][6]
+        halfhour_in_pf = row[1][0]
+        halfhour_out_pf = row[1][1]
+        anhour_in_pf = row[1][2]
+        anhour_out_pf = row[1][3]
+        aday_in_pf = row[1][4]
+        aday_out_pf = row[1][5]
+        temp = predict_singlestation_info(Station_name=Station_name,halfhour_in_pf=halfhour_in_pf,halfhour_out_pf=halfhour_out_pf,
+                                          anhour_in_pf=anhour_in_pf,anhour_out_pf=anhour_out_pf,aday_in_pf=aday_in_pf,aday_out_pf=aday_out_pf)
+        all.append(temp)
+    db.session.add_all(all)
+    db.session.commit()
+    from flask import jsonify
+    return jsonify(msg = "单站点预测数据更新成功")
+
+
 if __name__ =="__main__":
     app.run()

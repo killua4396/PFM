@@ -89,8 +89,8 @@ class predict_singlestation_info(db.Model):
     anhour_out_pf = db.Column(db.Integer)
     aday_in_pf = db.Column(db.Integer)
     aday_out_pf = db.Column(db.Integer)
-    def __init__(self,id=None,Station_name=None,halfhour_in_pf=None,halfhour_out_pf=None,anhour_in_pf=None,anhour_out_pf=None,aday_in_pf=None,aday_out_pf=None):
-        self.data(id,Station_name,halfhour_in_pf,halfhour_out_pf,anhour_in_pf,anhour_out_pf,aday_in_pf,aday_out_pf)
+    # def __init__(self,id=None,Station_name=None,halfhour_in_pf=None,halfhour_out_pf=None,anhour_in_pf=None,anhour_out_pf=None,aday_in_pf=None,aday_out_pf=None):
+    #     self.data(id,Station_name,halfhour_in_pf,halfhour_out_pf,anhour_in_pf,anhour_out_pf,aday_in_pf,aday_out_pf)
 
 #预测一周信息
 class predict_weekinfo(db.Model):

@@ -7,5 +7,9 @@ from predict.predict_week_info import predict_week_info
 from ControlSystem import ChangeParameter
 from ControlSystem import Transaction_flow_bytime
 
+@app.route("/")
+def hello()
+    return "欢迎使用系统"
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0")

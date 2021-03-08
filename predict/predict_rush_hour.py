@@ -63,5 +63,4 @@ def predict_rushhour_info():
     from flask import jsonify
     return jsonify(msg = "早晚高峰预测数据更新成功")
 
-if __name__ == "__main__":
-    app.run()
+

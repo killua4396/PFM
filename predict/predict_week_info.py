@@ -318,7 +318,5 @@ def predict_week_info():
     db.session.commit()
 
     from flask import jsonify
-    return jsonify(msg="月客流预测数据更新成功！")
+    return jsonify(msg="周客流预测数据更新成功！")
 
-if __name__ == "__main__":
-    app.run()

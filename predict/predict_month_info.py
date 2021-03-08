@@ -316,8 +316,5 @@ def predict_month_info():
     db.session.add_all([predict_M1, predict_M2])
     db.session.commit()
 
-    return jsonify(msg="月客流预测数据更新成功！")
+    return jsonify(msg="月客流预测数据更新成功！",code =1)
 
-
-if __name__ == '__main__':
-    app.run()

@@ -144,5 +144,3 @@ class workdays2020(db.Model):
     def __init__(self,Date=None,Date_type=None,Dayofyear=None):
         self.data(Date,Date_type,Dayofyear)
 
-if __name__ == '__main__':
-    db.create_all()

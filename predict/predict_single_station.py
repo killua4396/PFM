@@ -452,5 +452,3 @@ def update():
     return jsonify(msg = "单站点预测数据更新成功")
 
 
-if __name__ =="__main__":
-    app.run()

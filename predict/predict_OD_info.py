@@ -342,5 +342,3 @@ def predict_OD_info():
     from flask import jsonify
     return jsonify(msg = "OD客流预测数据更新成功！")
 
-if __name__ == "__main__":
-    app.run()

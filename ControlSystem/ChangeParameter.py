@@ -16,5 +16,3 @@ def ChangeParameter():
     return jsonify("模型参数更新成功")
 
 
-if __name__ =="__main__":
-    app.run()

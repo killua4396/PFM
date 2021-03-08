@@ -11,6 +11,7 @@ from predict import predict_week_info
 @app.route("/ControlSystem/init_Time")
 def init_Time():
     import pandas as pd
+    from flask import jsonify
     format_pattern = '%Y-%m-%d %H:%M:%S'
     def changeT_orderby_halfhour(x):
         t = int(x[14:16])
@@ -30,7 +31,7 @@ def init_Time():
     temp = [{"project":"update_single","SettingTime":Now},{"project":"all","SettingTime":Time}]
     temp = sorted(temp, key=lambda x: x["SettingTime"])
     session["AllSettingTime"] = temp
-    return "初始化成功"
+    return jsonify(msg = "初始化成功")
 
 @app.route("/ControlSystem/SetTime",methods=["POST","GET"])
 #设顶模型训练时间
@@ -66,6 +67,7 @@ def clear():
 
 @app.route("/ControlSystem/Transaction_flow_bytime",methods=["GET"])
 def Transaction_flow_bytime():
+    from flask import jsonify
     import datetime
     import time
     while True:
@@ -106,8 +108,6 @@ def Transaction_flow_bytime():
 
             all_setting = all_setting[1:]
             session["AllSettingTime"] = all_setting
-    return "WrongsHappen"
+    return jsonify(msg="Error")
 
 
-if __name__ == "__main__":
-    app.run()
